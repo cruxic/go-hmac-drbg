@@ -24,6 +24,17 @@ type HmacDrbg struct {
 	reseedCounter int
 }
 
+/**Read from an arbitrary number of bytes from HmacDrbg efficiently.
+Internally it generates blocks of MaxBytesPerGenerate.  It then
+serves these out through the standard `Read` function.  Read returns
+an error if reseed becomes is necessary.
+*/
+type HmacDrbgReader struct {
+	Drbg *HmacDrbg
+	buffer []byte //size MaxBytesPerGenerate
+	offset int
+}
+
 /**Create a new DRBG.
 desiredSecurityLevelBits must be one of 112, 128, 192, 256.
 
@@ -166,3 +177,30 @@ func (self *HmacDrbg) Generate(outputBytes []byte) bool {
 	
 	return true
 } 
+
+func NewHmacDrbgReader(drbg *HmacDrbg) *HmacDrbgReader {
+	return &HmacDrbgReader{
+		Drbg: drbg,
+		buffer: make([]byte, MaxBytesPerGenerate),
+		offset: MaxBytesPerGenerate,
+	}
+}
+
+func (self *HmacDrbgReader) Read(b []byte) (n int, err error) {
+	nRead := 0
+	nWanted := len(b)
+	for nRead < nWanted {
+		if self.offset >= MaxBytesPerGenerate {
+			if !self.Drbg.Generate(self.buffer) {
+				return nRead, errors.New("MUST_RESEED")
+			}
+			self.offset = 0
+		}
+		
+		b[nRead] = self.buffer[self.offset]
+		nRead++
+		self.offset++
+	}
+	
+	return nRead, nil
+}

@@ -98,3 +98,35 @@ func TestAllGenerationLengths(t *testing.T) {
 	expect, _ := hex.DecodeString("ee5fb7498d044ad52dac5a4e6446da71a253d024985f4969dad8590e93890be3")
 	assert.Equal(expect, got)
 }
+
+func TestHmacDrbgReader(t *testing.T) {
+	assert := assert.New(t)
+
+	//I created this test vector with https://github.com/fpgaminer/python-hmac-drbg
+	seed48 := make([]byte, 48)
+	for i := range seed48 {
+		seed48[i] = 97  //'a'
+	}
+	
+	reader := NewHmacDrbgReader(NewHmacDrbg(256, seed48, nil))
+	
+	h := sha256.New()
+	
+	//Read 3 bytes at a time
+	buf := make([]byte, 3)
+	
+	//read total of MaxBytesPerGenerate*3 bytes
+	for i := 0; i < MaxBytesPerGenerate; i++ {
+		n, err := reader.Read(buf)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		assert.Equal(3, n)
+		h.Write(buf)
+	}
+		
+	got := h.Sum(nil)
+	expect, _ := hex.DecodeString("48dd72451290c1945261653dc11542b82b6903e458315020805d560ce125f534")
+	assert.Equal(expect, got)
+}
