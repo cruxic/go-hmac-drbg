@@ -62,6 +62,16 @@ func main() {
 		
 		log.Println(hex.EncodeToString(randData))
 	}
+	
+	//If you need a Readable use HmacDrbgReader
+	reader := hmacdrbg.NewHmacDrbgReader(hmacdrbg.NewHmacDrbg(256, seed, nil))
+	_, err = reader.Read(randData)
+	if err != nil {
+		//A reseed is necessary after ~9MB.
+		//Use reader.Drbg.Reseed() if you need more.
+		log.Fatal(err)
+	}
+	log.Println(hex.EncodeToString(randData))	
 }
 ```
 
